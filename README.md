@@ -5,10 +5,10 @@
 Define these variables in an `.env` file
 ```
 # IG OAUTH 
-REACT_APP_OPENAM_OAUTH_URL=[OPENAM URL] see table below for environment URLS
-REACT_APP_OPENAM_CLIENT_ID=[CLIENT ID] client configured in OpenAM
-REACT_APP_OPENAM_CLIENT_SECRET=[CLIENT SECRET] secret configured for OpenAM client
-REACT_APP_OPENAM_CLIENT_STATE=[STATE] optional string
+REACT_APP_OAUTH_PROVIDER_URL=[OPENAM URL] see table below for environment URLS
+REACT_APP_CLIENT_ID=[CLIENT ID] client configured in OpenAM
+REACT_APP_CLIENT_SECRET=[CLIENT SECRET] secret configured for OpenAM client
+REACT_APP_CLIENT_STATE=[STATE] optional string
 
 # IG FIX WEBSOCKET
 REACT_APP_PRE_TRADE_WEBSOCKET_URL=[IG WEBSOCKET URL]  see table below for environment URLS
@@ -29,7 +29,7 @@ REACT_APP_OAUTH_APP_KEY=[IG API KEY]
 | ----|:----:| ---:|
 | TEST | Pretrade | wss://net-otapr.ig.com/pretrade |
 | TEST | Trade | wss://net-otapr.ig.com/trade |
-| UAT | OpenAM | http://oam.uat.iggroup.local/openam/oauth2 |
+| UAT | OpenAM | https://oam.uat.iggroup.local/openam/oauth2 |
 | UAT | Pretrade | wss://router-ext-core.uat.iggroup.local/igus-ws-pre-trade/pretrade |
 | UAT | Trade | wss://router-ext-core.uat.iggroup.local/igus-ws-trade/trade |
 

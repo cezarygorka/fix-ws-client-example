@@ -9,7 +9,7 @@ const AUTH_ERRORS = {
    "error.security.invalid-details": "Access token has expired or is incorrect"
 };
 
-const { REACT_APP_OPENAM_OAUTH_URL, REACT_APP_OPENAM_CLIENT_ID, REACT_APP_OPENAM_CLIENT_SECRET, REACT_APP_CLIENT_HEARTBEAT, REACT_APP_OPENAM_CLIENT_STATE } = process.env;
+const { REACT_APP_OAUTH_PROVIDER_URL, REACT_APP_CLIENT_ID, REACT_APP_CLIENT_SECRET, REACT_APP_CLIENT_HEARTBEAT, REACT_APP_CLIENT_STATE } = process.env;
 
 export default function OAuth({ preTradeService, tradeService, message, onEstablishSuccessful, isLoginSuccessful, accessToken = null, setAccessToken = f => f, setClientId = f => f, setError = f => f }) {
    const location = useLocation();
@@ -17,7 +17,7 @@ export default function OAuth({ preTradeService, tradeService, message, onEstabl
    const [isLoading, setLoading] = useState(true);
 
    async function getOAuthTokens(code) {
-      const credentials  = REACT_APP_OPENAM_CLIENT_ID + ':' + REACT_APP_OPENAM_CLIENT_SECRET;
+      const credentials  = REACT_APP_CLIENT_ID + ':' + REACT_APP_CLIENT_SECRET;
       const authorizationHeader = "Basic " + new Buffer(credentials).toString("base64");
       const client = axios.create({ headers: { "Authorization": authorizationHeader, "Content-Type": "application/x-www-form-urlencoded" } });
       const redirectUri = `http://${window.location.hostname}:${window.location.port}/oauth`;
@@ -29,7 +29,7 @@ export default function OAuth({ preTradeService, tradeService, message, onEstabl
          `redirect_uri=${redirectUri}`
       ].join("&");
 
-      const response = await client.post(REACT_APP_OPENAM_OAUTH_URL + "/access_token", data);
+      const response = await client.post(REACT_APP_OAUTH_PROVIDER_URL + "/access_token", data);
       const { access_token, refresh_token } = response.data;
 
       Cookie.set("igOpenAMRefreshToken", refresh_token);
@@ -39,7 +39,7 @@ export default function OAuth({ preTradeService, tradeService, message, onEstabl
    async function getUserInfo({ access_token, refresh_token }) {
       const authorizationHeader = "Basic " + access_token;
       const client = axios.create({ headers: { "Authorization":  authorizationHeader} });
-      const response = await client.get(REACT_APP_OPENAM_OAUTH_URL + "/userinfo");
+      const response = await client.get(REACT_APP_OAUTH_PROVIDER_URL + "/userinfo");
       const { sub } = response.data;
       return { access_token, refresh_token, sub };
    }
@@ -63,7 +63,7 @@ export default function OAuth({ preTradeService, tradeService, message, onEstabl
       let code = query.get("code");
       let state = query.get("state");
       if (code && !accessToken) {
-         if (state && state != REACT_APP_OPENAM_CLIENT_STATE) {
+         if (state && state != REACT_APP_CLIENT_STATE) {
             console.log(`Request parameter state=${state} does not match expected state`);
          }
          getOAuthTokens(code)
