@@ -11,8 +11,8 @@ export default function Websocket({ service, onMessage, onOpen, onError, onClose
         onError();
       };
 
-      service.fixpWebsocket.onclose = () => {
-        onClose();
+      service.fixpWebsocket.onclose = (event) => {
+        onClose(event);
       };
 
       service.fixpWebsocket.onmessage = ({ data }) => {

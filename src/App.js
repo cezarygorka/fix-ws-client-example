@@ -17,6 +17,17 @@ import 'shards-ui/dist/css/shards.min.css';
 
 const { REACT_APP_TRADE_WEBSOCKET_URL, REACT_APP_PRE_TRADE_WEBSOCKET_URL  } = process.env;
 
+const ENV_URL = {
+  DEMO: {
+    PRE_TRADE: 'wss://demo-otapr.ig.com/pretrade',
+    TRADE: 'wss://demo-otat.ig.com/trade'
+  },
+  PROD: {
+    PRE_TRADE: 'wss://otapr.ig.com/pretrade',
+    TRADE: 'wss://otat.ig.com/trade'
+  }
+};
+
 export default function App() {
   const [ isPreTradeConnected, setIsPreTradeConnected ] = useState(false);
   const [ isTradeConnected, setIsTradeConnected ] = useState(false);
@@ -43,31 +54,38 @@ export default function App() {
   const [clientId, setClientId] = useState(0);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const { REACT_APP_PRE_TRADE_WEBSOCKET_URL, REACT_APP_TRADE_WEBSOCKET_URL  } = process.env;
-    setAuthService(new OAuthService());
+  const [ preTradeUrl, setPreTradeUrl ] = useState(REACT_APP_PRE_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.PRE_TRADE);
+  const [ tradeUrl, setTradeUrl ] = useState(REACT_APP_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.TRADE);
+  const normalClose = 1000;
 
-    setPreTradeService(new WebsocketConnection(REACT_APP_PRE_TRADE_WEBSOCKET_URL));
-    setTradeService(new WebsocketConnection(REACT_APP_TRADE_WEBSOCKET_URL));
+
+  useEffect(() => {
+    setAuthService(new OAuthService());
+    setPreTradeService(new WebsocketConnection(REACT_APP_PRE_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.PRE_TRADE));
+    setTradeService(new WebsocketConnection(REACT_APP_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.TRADE));
   }, []);
 
-  function resetPreTradeState() {
-    setPreTradeAttempts(preTradeAttempts + 1);
-
-    if (preTradeAttempts + 1 !== 3) {
-      resetState(preTradeService, setPreTradeService, REACT_APP_PRE_TRADE_WEBSOCKET_URL,setIsPreTradeEstablish);
-      resetMessages();
-      setIsPreTradeLoginSuccessful(false);
+  function resetPreTradeState(e) {
+    if (e !== normalClose) {
+      setPreTradeAttempts(preTradeAttempts + 1);
+  
+      if (preTradeAttempts + 1 !== 3) {
+        resetState(preTradeService, setPreTradeService, preTradeUrl, setIsPreTradeEstablish);
+        resetMessages();
+        setIsPreTradeLoginSuccessful(false);
+      }
     }
   }
 
-  function resetTradeState() {
-    setTradeAttempts(tradeAttempts + 1);
+  function resetTradeState(e) {
+    if (e !== normalClose) {
+      setTradeAttempts(tradeAttempts + 1);
 
-    if (tradeAttempts + 1 !== 3) {
-      resetState(tradeService, setTradeService, REACT_APP_TRADE_WEBSOCKET_URL, setIsTradeEstablish);
-      setTradeMessage({});
-      setIsTradeLoginSuccessful(false);
+      if (tradeAttempts + 1 !== 3) {
+        resetState(tradeService, setTradeService, tradeUrl, setIsTradeEstablish);
+        setTradeMessage({});
+        setIsTradeLoginSuccessful(false);
+      }
     }
   }
 
@@ -102,6 +120,17 @@ export default function App() {
 
   function setMessageSource(message, source) {
     message.Source = source;
+  }
+
+  function setWebsocketUrl(env) {
+    setPreTradeUrl(ENV_URL[env].PRE_TRADE);
+    setTradeUrl(ENV_URL[env].TRADE);
+    preTradeService.stopHeartbeat();
+    tradeService.stopHeartbeat();
+    preTradeService.close(normalClose);
+    tradeService.close(normalClose);
+    setPreTradeService(new WebsocketConnection(ENV_URL[env].PRE_TRADE));
+    setTradeService(new WebsocketConnection(ENV_URL[env].TRADE));
   }
 
   function handlePreTradeMessages(message) {
@@ -155,14 +184,14 @@ export default function App() {
         onMessage={handlePreTradeMessages}
         onOpen={() => {setPreTradeAttempts(0); setIsPreTradeConnected(true)}}
         onError={() => resetMessages()}
-        onClose={() => resetPreTradeState()}
+        onClose={(e) => resetPreTradeState(e)}
         service={preTradeService}
       />
       <Websocket
           onMessage={handleTradeMessages}
           onOpen={() => {setTradeAttempts(0); setIsTradeConnected(true)}}
           onError={() => setTradeMessage({})}
-          onClose={() => resetTradeState()}
+          onClose={(e) => resetTradeState(e)}
           service={tradeService}
       />
       <Router>
@@ -219,6 +248,7 @@ export default function App() {
                   authService={authService}
                   message={loginMessage}
                   isConnected={isPreTradeConnected && isTradeConnected}
+                  onWebsocketEnvChanged={(env) => setWebsocketUrl(env)}
                   isLoginSuccessful={isPreTradeLoginSuccessful && isTradeLoginSuccessful}
                   onLoginSuccessful={handleLoginSuccessful}
                 />

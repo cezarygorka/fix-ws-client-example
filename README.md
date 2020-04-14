@@ -53,5 +53,5 @@ npm start
 The app should open in the browser at:
 
 ```
-http://localhost:3000
+http://<hostname>:3000
 ```

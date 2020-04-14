@@ -1,4 +1,5 @@
 import * as Timestamp from 'timestamp-nano';
+import {generateSendingTime} from "./utils";
 
 export const DATETIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
@@ -23,8 +24,8 @@ export default class WebsocketConnection {
     this.fixpWebsocket = new WebSocket(url);
   }
 
-  close() {
-    this.fixpWebsocket.close();
+  close(code) {
+    this.fixpWebsocket.close(code);
   }
 
   send(data) {
@@ -42,6 +43,8 @@ export default class WebsocketConnection {
 
     const negotiate = {
       MessageType:"Negotiate",
+      ApplVerID: "FIX50SP2",
+      SendingTime: generateSendingTime(),
       Timestamp:timestamp,
       SessionId: sessionId,
       ClientFlow:"Unsequenced",
@@ -55,7 +58,7 @@ export default class WebsocketConnection {
 
   sendEstablish(sessionId, heartbeat) {
     const timestamp = this._generateTimestamp();
-    this.heartbeatIntervalAmount = heartbeat;
+    this.heartbeatIntervalAmount = heartbeat || 30000;
     const establish = {
       MessageType:"Establish",
       Timestamp: timestamp,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChartCanvas, Chart } from 'react-stockcharts';
 import { XAxis, YAxis } from 'react-stockcharts/lib/axes';
 import { discontinuousTimeScaleProvider } from 'react-stockcharts/lib/scale';
@@ -12,28 +12,51 @@ import { ClickCallback } from "react-stockcharts/lib/interactive";
 import { CHART_DATE_FORMAT } from './charts';
 
 export default function ChartCandlestick({ data: candleData, direction, width, latestTick }) {
-  let parsedData = candleData.map((candle) => {
-    const { High, Low, First, Last, EndDate } = candle;
-    let parsedDate = parse(EndDate, CHART_DATE_FORMAT, new Date());
-    return {
-      date: parsedDate,
-      open: +First[direction],
-      close: +Last[direction],
-      high: +High[direction],
-      low: +Low[direction]
-    }
-  });
+  const [ dataset, setDataset ] = useState([]);
 
-  if (latestTick) {
-    const { High, Low, First, Last } = latestTick;
-    parsedData[parsedData.length - 1] = {
-      ...parsedData[parsedData.length - 1],
-      open: +First[direction],
-      close: +Last[direction],
-      high: +High[direction],
-      low: +Low[direction]
+  useEffect(() => {
+    const data = candleData.map((candle) => {
+      const { High, Low, First, Last, EndDate } = candle;
+      let parsedDate = parse(EndDate, CHART_DATE_FORMAT, new Date());
+      return {
+        date: parsedDate,
+        open: +First[direction],
+        close: +Last[direction],
+        high: +High[direction],
+        low: +Low[direction]
+      }
+    });
+    setDataset(data);
+  }, [candleData, direction]);
+
+  useEffect(() => {
+    if (latestTick) {
+      setDataset(d => {
+        const { High, Low, First, Last, StartDate } = latestTick;
+        let datasetElement = d[d.length - 1];
+        if (datasetElement) {
+          const parsedDate = parse(StartDate, CHART_DATE_FORMAT, new Date());
+          const date = datasetElement.date;
+
+          if (parsedDate.getTime() === date.getTime()) {
+            datasetElement.open = +First[direction];
+            datasetElement.close = +Last[direction];
+            datasetElement.high = +High[direction];
+            datasetElement.low = +Low[direction];
+          } else {
+            d.push({
+              date: parsedDate,
+              open: +First[direction],
+              close: +Last[direction],
+              high: +High[direction],
+              low: +Low[direction]
+            });
+          }
+        }
+        return d;
+      })
     }
-  }
+  }, [latestTick, direction]);
 
   const xScaleProvider = discontinuousTimeScaleProvider;
   const {
@@ -41,7 +64,7 @@ export default function ChartCandlestick({ data: candleData, direction, width, l
     xScale,
     xAccessor,
     displayXAccessor,
-  } = xScaleProvider(parsedData);
+  } = xScaleProvider(dataset);
 
   const xExtents = [
     xAccessor(last(data)),
@@ -49,7 +72,6 @@ export default function ChartCandlestick({ data: candleData, direction, width, l
   ];
 
   const height = 400;
-
   const margin = { left: 60, right: 50, top: 10, bottom: 30 };
   const gridHeight = height - margin.top - margin.bottom;
   const gridWidth = width - margin.left - margin.right;
@@ -58,7 +80,7 @@ export default function ChartCandlestick({ data: candleData, direction, width, l
 
   return (
     <div className="chart-candlestick-container">
-      {candleData.length > 0 &&
+      {dataset.length > 0 &&
       <ChartCanvas
         height={height}
         ratio={1}

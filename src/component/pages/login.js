@@ -11,11 +11,16 @@ const AUTH_TYPE = {
   CREDENTIALS: 'login'
 };
 
+const ENV = {
+  DEMO: 'DEMO',
+  PROD: 'PROD'
+};
+
 const AUTH_ERRORS = {
   "error.security.invalid-details": "Username or password is incorrect"
 };
 
-export default function Login({preTradeService, tradeService, authService, message, onLoginSuccessful, isLoginSuccessful, isConnected}) {
+export default function Login({preTradeService, tradeService, authService, message, onLoginSuccessful, isLoginSuccessful, onWebsocketEnvChanged, isConnected}) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [authType, setAuthType] = useState(AUTH_TYPE.OAUTH);
@@ -87,9 +92,9 @@ export default function Login({preTradeService, tradeService, authService, messa
             <h3>Login</h3>
             <Form>
               <FormGroup>
-                <InputField value={identifier} labelName={"Username"} id="username" type="text"
+                <InputField autoComplete="on" value={identifier} labelName={"Username"} id="username" type="text"
                             onChange={(e) => setIdentifier(e.target.value)} onInput={(e) => setIdentifier(e.target.value)}/>
-                <InputField value={password} labelName={"Password"} id="password" type="password"
+                <InputField autoComplete="on" value={password} labelName={"Password"} id="password" type="password"
                             onChange={(e) => setPassword(e.target.value)} onInput={(e) => setPassword(e.target.value)}/>
 
                 <label htmlFor="auth-type">Auth Type: </label>
@@ -97,6 +102,13 @@ export default function Login({preTradeService, tradeService, authService, messa
                   <option value={AUTH_TYPE.OAUTH}>OAuth</option>
                   <option value={AUTH_TYPE.CREDENTIALS}>Credentials</option>
                 </FormSelect>
+                <label htmlFor="env-type">Environment: </label>
+                {process.env.REACT_APP_PRE_TRADE_WEBSOCKET_URL && process.env.REACT_APP_TRADE_WEBSOCKET_URL ? <div>Custom</div> :
+                  <FormSelect id="env-type" onChange={(e) => onWebsocketEnvChanged(e.target.value)}>
+                    <option value={ENV.DEMO}>Demo</option>
+                    <option value={ENV.PROD}>Production</option>
+                  </FormSelect>
+                }
                 <Button className="login-button" theme="secondary" onClick={handleNegotiate}>Login</Button>
               </FormGroup>
             </Form>
