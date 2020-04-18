@@ -5,6 +5,8 @@ import WebsocketConnection, {WEBSOCKET_SOURCE} from './services/websocket-connec
 import OAuthService from './services/auth-service';
 import Login from './component/pages/login';
 import Trade from './component/pages/trade';
+import OAuthProvider from './component/pages/oauth-provider';
+import OAuth from './component/oauth';
 import Websocket from './services/websocket';
 import AuthenticatedRoute from './component/route/authenticated-route';
 import RedirectRoute from './component/route/redirect-route';
@@ -47,6 +49,9 @@ export default function App() {
   const [ quoteMessage, setQuoteMessage ] = useState({});
   const [ securityListMessage, setSecurityListMessage ] = useState(null);
   const [ tradeMessage, setTradeMessage ] = useState({});
+  const [accessToken, setAccessToken] = useState('');
+  const [clientId, setClientId] = useState(0);
+  const [error, setError] = useState('');
 
   const [ preTradeUrl, setPreTradeUrl ] = useState(REACT_APP_PRE_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.PRE_TRADE);
   const [ tradeUrl, setTradeUrl ] = useState(REACT_APP_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.TRADE);
@@ -221,6 +226,19 @@ export default function App() {
           <div className="router-view">
             <Switch>
               <RedirectRoute condition={isPreTradeEstablish && isTradeEstablish} path="/" exact />
+              <Route path={"/oauth"}>
+                <OAuth
+                  preTradeService={preTradeService}
+                  tradeService={tradeService}
+                  message={loginMessage}
+                  isLoginSuccessful={isPreTradeLoginSuccessful && isTradeLoginSuccessful}
+                  onEstablishSuccessful={handleLoginSuccessful}
+                  accessToken={accessToken}
+                  setAccessToken={setAccessToken}
+                  setClientId={setClientId}
+                  setError={setError}
+                />
+              </Route>
               <Route path="/login">
                 <Login
                   preTradeService={preTradeService}
@@ -231,6 +249,11 @@ export default function App() {
                   onWebsocketEnvChanged={(env) => setWebsocketUrl(env)}
                   isLoginSuccessful={isPreTradeLoginSuccessful && isTradeLoginSuccessful}
                   onLoginSuccessful={handleLoginSuccessful}
+                />
+                <OAuthProvider
+                  setAccessToken={setAccessToken}
+                  error={error}
+                  setError={setError}
                 />
               </Route>
               <AuthenticatedRoute condition={isPreTradeEstablish && isTradeEstablish} path="/trade">
