@@ -1,0 +1,13 @@
+.working-orders {
+  margin: 12px 0 12px;
+}
+
+.working-orders .list-group .list-group-item {
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+.working-orders .list-group-item span {
+  padding: 0 10px 0;
+}
+

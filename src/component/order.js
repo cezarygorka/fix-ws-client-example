@@ -1,48 +1,52 @@
 import React, {useState, useEffect} from "react";
 import {Col, Button} from "shards-react";
 import InputField from "./ui/input-field";
-import OrderService from "../services/order-service";
 import SelectField from "./ui/select-field";
 import DatePicker from "react-datepicker";
 import { DATETIME_FORMAT } from "../services/websocket-connection";
 import { format } from 'date-fns';
 import "../styles/order.css";
 
-export default function Order({service, priceLevel, side, securityId, errorMessage, orderId, orderStatus, rejectReason}) {
-  const [orderService, setOrderService] = useState(null);
+const ORDER_TYPES = {
+  MARKET: "Market",
+  PREVIOUSLY_QUOTED: "PreviouslyQuoted",
+  LIMIT: "Limit",
+  STOP: "Stop",
+};
+
+const TIME_IN_FORCE = {
+  FILL_OR_KILL: "FillOrKill",
+  GOOD_TILL_CANCEL: "GoodTillCancel",
+  GOOD_TILL_DATE: "GoodTillDate",
+  IMMEDIATE_OR_CANCEL: "ImmediateOrCancel",
+};
+
+export default function Order({orderService, priceLevel, side, securityId, errorMessage, orderId, orderStatus, rejectReason, account, currency }) {
   const [price, setPrice] = useState("");
   const [orderQty, setOrderQty] = useState("1");
-  const [orderType, setOrderType] = useState("Market");
-  const [timeInForce, setTimeInForce] = useState("FillOrKill");
+  const [orderType, setOrderType] = useState(ORDER_TYPES.MARKET);
+  const [timeInForce, setTimeInForce] = useState(TIME_IN_FORCE.FILL_OR_KILL);
   const [displayDate, setDisplayDate] = useState(new Date());
-  const [goodTillDate, setGoodTillDate] = useState();
+  const [expiry, setExpiry] = useState(format(new Date(), DATETIME_FORMAT));
 
   const [lastOrderedId, setLastOrderedId] = useState();
-
-  const [currency, setCurrency] = useState("USD");
-  const [account, setAccount] = useState("");
-
   const [ currentOrderStatus, setCurrentOrderStatus ] = useState();
   const [ confirmTimer, setConfirmTimer ] = useState();
 
-  const [orderTypes] = useState([
-    {name: "Market", value: "Market"},
-    {name: "Previously Quoted", value: "PreviouslyQuoted"},
-    {name: "Limit", value: "Limit"},
-    {name: "Stop", value: "Stop"}
-  ]);
-  const [timeInForces] = useState([
-    {name: "Fill or Kill", value: "FillOrKill"},
-    {name: "Good Till Cancel", value: "GoodTillCancel"},
-    {name: "Good Till Date", value: "GoodTillDate"},
-    {name: "Immediate or Cancel", value: "ImmediateOrCancel"},
+  const [allOrderTypes] = useState([
+    {name: ORDER_TYPES.MARKET, value: ORDER_TYPES.MARKET},
+    {name: "Previously Quoted", value: ORDER_TYPES.PREVIOUSLY_QUOTED},
+    {name: ORDER_TYPES.LIMIT, value: ORDER_TYPES.LIMIT},
+    {name: ORDER_TYPES.STOP, value: ORDER_TYPES.STOP}
   ]);
 
-  useEffect(() => {
-    if (!orderService && service) {
-      setOrderService(new OrderService(service));
-    }
-  }, [orderService, service]);
+  const [orderTypes, setOrderTypes ] = useState(allOrderTypes);
+  const [timeInForces] = useState([
+    {name: "Fill or Kill", value: TIME_IN_FORCE.FILL_OR_KILL},
+    {name: "Good Till Cancel", value:TIME_IN_FORCE.GOOD_TILL_CANCEL},
+    {name: "Good Till Date", value: TIME_IN_FORCE.GOOD_TILL_DATE},
+    {name: "Immediate or Cancel", value: TIME_IN_FORCE.IMMEDIATE_OR_CANCEL},
+  ]);
 
   useEffect(() => {
     setPrice(priceLevel);
@@ -88,9 +92,25 @@ export default function Order({service, priceLevel, side, securityId, errorMessa
     }
   }, [rejectReason, lastOrderedId, orderId, confirmTimer]);
 
+  useEffect(() => {
+    if (timeInForce === TIME_IN_FORCE.FILL_OR_KILL) {
+      setOrderTypes(allOrderTypes.filter(o => o.value !== ORDER_TYPES.STOP));
+      setOrderType(ORDER_TYPES.MARKET);
+    } else if (timeInForce === TIME_IN_FORCE.GOOD_TILL_DATE || timeInForce === TIME_IN_FORCE.GOOD_TILL_CANCEL ) {
+      setOrderTypes(allOrderTypes.filter(o => o.value !== ORDER_TYPES.MARKET && o.value !==ORDER_TYPES.PREVIOUSLY_QUOTED));
+      setOrderType(ORDER_TYPES.LIMIT);
+    } else if (timeInForce === TIME_IN_FORCE.IMMEDIATE_OR_CANCEL) {
+      setOrderTypes(allOrderTypes.filter(o => o.value !== ORDER_TYPES.STOP));
+      setOrderType(ORDER_TYPES.MARKET);
+    } else {
+      setOrderTypes(allOrderTypes);
+      setOrderType(ORDER_TYPES.MARKET);
+    }
+  }, [timeInForce, allOrderTypes]);
+
   function handleDateChange(date) {
     setDisplayDate(date);
-    setGoodTillDate(format(date, DATETIME_FORMAT));
+    setExpiry(format(date, DATETIME_FORMAT));
   }
 
   function handleClick() {
@@ -103,7 +123,7 @@ export default function Order({service, priceLevel, side, securityId, errorMessa
       side,
       securityId,
       account,
-      ...{ goodTillDate }
+      ...{ expiry }
     };
 
     if (orderType === "Stop") {

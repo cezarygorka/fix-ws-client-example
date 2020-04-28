@@ -9,6 +9,9 @@ import SymbolList from '../symbol-list';
 import PerformanceMetrics from "../../performance-metrics";
 import '../../styles/pre-trade.css';
 import Order from "../order";
+import OrderService from "../../services/order-service";
+import ExecutionReportService from '../../services/execution-report-service';
+import WorkingOrders from '../working-orders';
 
 const DEFAULT_SYMBOL_SUBSCRIPTIONS = [
   'GBP/USD',
@@ -19,7 +22,7 @@ const SIDE = {
   ASK: "Sell"
 };
 
-export default function Trade({ quoteMessage, tradeMessage, preTradeService, tradeService, isEstablish, candleData, candleSubscriptionData, securityList }) {
+export default function Trade({ quoteMessage, tradeMessage, preTradeService, tradeService, isEstablish, candleData, candleSubscriptionData, securityList = [], account}) {
   const [ securityId, setSecurityId ] = useState(null);
   const [ direction, setDirection ] = useState(null);
   const [ selectedClass, setSelectedClass ] = useState(null);
@@ -28,32 +31,51 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
   const [ symbol, setSymbol ] = useState(null);
   const [ quotesArr, setQuotesArr ] = useState([]);
   const [ selectedMarket, setSelectedMarket ] = useState({ priceLevel: "", side: "", securityId: "" });
+  const [orderService, setOrderService] = useState(null);
+  const [workingOrders, setWorkingOrders] = useState([]);
+  const [executionReportService] = useState(new ExecutionReportService());
+  const [currency, setCurrency] = useState("");
 
   const serviceQuoteLength = quoteService ? quoteService.getSubscribedQuotes().length : 0;
+  const executionReportLength = executionReportService && executionReportService.getExecutionReports().length;
 
   useEffect(() => {
-    if (!quoteService) {
-      setQuoteService(new QuoteService(preTradeService));
-    }
+    !orderService && tradeService && setOrderService(new OrderService(tradeService));
+  }, [orderService, tradeService]);
 
-    return () => {
-      if (quoteService) {
-        quoteService.unsubscribeAll();
-      }
-    }
+  useEffect(() => {
+    const getOrderStatus = () => orderService && account && orderService.getOrderMassStatus({ account });
+    getOrderStatus();
+  }, [orderService, account]);
+
+  useEffect(() => {
+    !quoteService && setQuoteService(new QuoteService(preTradeService));
+
+    return () => quoteService && quoteService.unsubscribeAll();
   }, [quoteService, preTradeService]);
 
   useEffect(() => {
-    if (!quotesArr) {
-      setQuotesArr([]);
-    }
+    !quotesArr && setQuotesArr([]);
   }, [quotesArr]);
 
   useEffect(() => {
-    if (quoteService && serviceQuoteLength) {
-      setSubscribedQuotes(quoteService.getSubscribedQuotes().map(quoteRequest => quoteRequest.securityId));
-    }
+    quoteService && serviceQuoteLength && setSubscribedQuotes(quoteService.getSubscribedQuotes().map(quoteRequest => quoteRequest.securityId));
   }, [quoteService, serviceQuoteLength]);
+
+  useEffect(() => {
+    const setSecurityIdSymbol = (message) => {
+      const { Symbol } = securityList.find(o => o.SecurityID === message.SecurityID);
+      message.SecurityIdSymbol = Symbol;
+      return message;
+    };
+    const update = (message) => executionReportService && executionReportService.updateExecutionReport(message);
+    tradeMessage && tradeMessage.MsgType === "ExecutionReport"
+      && setSecurityIdSymbol(tradeMessage) && update(tradeMessage);
+  }, [executionReportService, tradeMessage, securityList]);
+
+  useEffect(() => {
+    executionReportService && setWorkingOrders(executionReportService.getWorkingOrders());
+  }, [executionReportService, executionReportLength]);
 
   useEffect(() => {
     if (isEstablish && securityList && quoteService) {
@@ -112,6 +134,8 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
   }, [quotesArr, subscribedQuotes]);
 
   function selectChart({ direction: quoteDirection, securityId: quoteSecurityId, symbol: quoteSymbol, value }) {
+    const dealableCurrency = securityList.find(s => s.SecurityID === quoteSecurityId).Currency;
+    setCurrency(dealableCurrency);
     setSelectedMarket({ side: SIDE[quoteDirection], priceLevel: value, securityId: quoteSecurityId });
     if (direction && securityId && (direction === quoteDirection) && (securityId === quoteSecurityId)) {
       setDirection(null);
@@ -139,6 +163,11 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
       setQuotesArr(null);
       setSubscribedQuotes([]);
     }
+  }
+
+  function handleCancelOrder(order) {
+    order.Account = account;
+    orderService.cancelOrder(order);
   }
 
   return (
@@ -187,7 +216,9 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
             {symbol && securityId && direction &&
             <Row>
               <Order
-                  service={tradeService}
+                  orderService={orderService}
+                  account={account}
+                  currency={currency}
                   errorMessage={tradeMessage.Text}
                   rejectReason={tradeMessage.OrdRejReason}
                   orderId={tradeMessage.ClOrdID}
@@ -197,9 +228,13 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
                   securityId={selectedMarket.securityId}
               />
             </Row>}
+            <Row>
+              <Col>
+                <WorkingOrders orders={workingOrders} onCancelOrder={handleCancelOrder} />
+              </Col>
+            </Row>
           </Col>
         </Row>
-
       </div>
   );
 }

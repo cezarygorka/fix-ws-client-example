@@ -8,12 +8,13 @@ import Trade from './component/pages/trade';
 import OAuthProvider from './component/pages/oauth-provider';
 import OAuth from './component/oauth';
 import Websocket from './services/websocket';
-import AuthenticatedRoute from './component/route/authenticated-route';
-import RedirectRoute from './component/route/redirect-route';
+import AuthenticatedRoute from './component/route-guard/authenticated-route';
+import RedirectRoute from './component/route-guard/redirect-route';
 
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'shards-ui/dist/css/shards.min.css';
+import PositionService from './services/position-service';
 
 const { REACT_APP_TRADE_WEBSOCKET_URL, REACT_APP_PRE_TRADE_WEBSOCKET_URL  } = process.env;
 
@@ -49,19 +50,35 @@ export default function App() {
   const [ quoteMessage, setQuoteMessage ] = useState({});
   const [ securityListMessage, setSecurityListMessage ] = useState(null);
   const [ tradeMessage, setTradeMessage ] = useState({});
-  const [accessToken, setAccessToken] = useState('');
-  const [clientId, setClientId] = useState(0);
-  const [error, setError] = useState('');
+  const [ accessToken, setAccessToken ] = useState('');
+  const [ clientId, setClientId ] = useState(0);
+  const [ error, setError ] = useState('');
+  const [ positionService, setPositionService ] = useState();
 
   const [ preTradeUrl, setPreTradeUrl ] = useState(REACT_APP_PRE_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.PRE_TRADE);
   const [ tradeUrl, setTradeUrl ] = useState(REACT_APP_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.TRADE);
   const normalClose = 1000;
+  const [account, setAccount] = useState("");
 
   useEffect(() => {
     setAuthService(new OAuthService());
     setPreTradeService(new WebsocketConnection(REACT_APP_PRE_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.PRE_TRADE));
     setTradeService(new WebsocketConnection(REACT_APP_TRADE_WEBSOCKET_URL || ENV_URL.DEMO.TRADE));
   }, []);
+
+  useEffect(() => {
+    !positionService && tradeService && setPositionService(new PositionService(tradeService));
+
+  }, [positionService, tradeService]);
+
+  useEffect(() => {
+    const { MessageType, Source } = loginMessage;
+    if (positionService && MessageType === "EstablishmentAck" && Source === WEBSOCKET_SOURCE.TRADE) {
+      const account = "";
+      setAccount(account);
+      positionService.getPositions({ account });
+    }
+  }, [loginMessage, positionService]);
 
   function resetPreTradeState(e) {
     if (e !== normalClose) {
@@ -177,7 +194,7 @@ export default function App() {
   }
 
   return (
-    <div>
+    <div className="App">
       <Websocket
         onMessage={handlePreTradeMessages}
         onOpen={() => {setPreTradeAttempts(0); setIsPreTradeConnected(true)}}
@@ -266,6 +283,7 @@ export default function App() {
                   candleData={historicCandleData}
                   candleSubscriptionData={chartSubscriptionData}
                   securityList={securityListMessage}
+                  account={account}
                 />
               </AuthenticatedRoute>
             </Switch>

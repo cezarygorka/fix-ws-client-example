@@ -57,14 +57,10 @@ export default function Charts({service, symbol, securityId, direction, candleSu
   }, [chartContainer]);
 
   useEffect(() => {
-    if (!chartService) {
-      setChartService(new ChartService(service));
-    }
+    !chartService && setChartService(new ChartService(service));
 
     return () => {
-      if (chartService) {
-        chartService.unsubscribeAll();
-      }
+      chartService && chartService.unsubscribeAll();
     }
   }, [chartService, service]);
 

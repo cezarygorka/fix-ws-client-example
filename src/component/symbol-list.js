@@ -15,9 +15,8 @@ export default function SymbolList({ selectedSymbols, service, securityList, onS
     }, [securityListService]);
 
     useEffect(() => {
-        if (!securityListService) {
-            setSecurityListService(new SecurityListService(service));
-        }
+      !securityListService && setSecurityListService(new SecurityListService(service));
+
     }, [securityListService, service]);
 
     return (
