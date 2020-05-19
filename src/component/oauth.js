@@ -1,6 +1,5 @@
 import React, { useState, useEffect  } from 'react';
 import {useHistory, useLocation} from 'react-router-dom';
-import axios from 'axios'
 import uuidv1 from "uuid/v1";
 import {WEBSOCKET_SOURCE} from "../services/websocket-connection";
 import Cookie from "js-cookie"
@@ -9,20 +8,18 @@ const AUTH_ERRORS = {
    "error.security.invalid-details": "Access token has expired or is incorrect"
 };
 
-const { REACT_APP_CLIENT_HEARTBEAT } = process.env;
-
 export default function OAuth({ preTradeService, tradeService, message, onEstablishSuccessful, isLoginSuccessful, accessToken = null, setAccessToken = f => f, setClientId = f => f, setError = f => f }) {
    const location = useLocation();
    const history = useHistory();
+   const [accountId, setAccountId] = useState('');
    const [isLoading, setLoading] = useState(true);
 
    function handleNegotiate() {
       if (!isLoading) {
          try {
             setError('');
-            let uuid = uuidv1();
-            preTradeService.sendNegotiate(uuid, 'oauth', accessToken);
-            tradeService.sendNegotiate(uuid, 'oauth', accessToken);
+            preTradeService.sendNegotiate(uuidv1(), 'oauth', accessToken);
+            tradeService.sendNegotiate(uuidv1(), 'oauth', accessToken);
          } catch ({response: {data: {errorCode}}}) {
             AUTH_ERRORS[errorCode] ? setError(AUTH_ERRORS[errorCode]) : setError(errorCode);
             console.log("Error: " + errorCode);
@@ -58,11 +55,11 @@ export default function OAuth({ preTradeService, tradeService, message, onEstabl
 
          switch (MessageType) {
             case "NegotiationResponse":
-               service.sendEstablish(message.SessionId, REACT_APP_CLIENT_HEARTBEAT);
+               service.sendEstablish(message.SessionId, +process.env.REACT_APP_CLIENT_HEARTBEAT);
                break;
             case "EstablishmentAck":
                service.startHeartbeat();
-               onEstablishSuccessful(Source);
+               onEstablishSuccessful({Source, accountId});
                break;
             case "NegotiationReject":
                setError("Token is invalid");

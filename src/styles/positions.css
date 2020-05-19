@@ -1,0 +1,13 @@
+.positions {
+  margin: 12px 0 12px;
+}
+
+.positions .list-group .list-group-item {
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+.positions .list-group-item span {
+  padding: 0 10px 0;
+}
+

@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import {Col, Button} from "shards-react";
+import {Button} from "shards-react";
 import InputField from "./ui/input-field";
 import SelectField from "./ui/select-field";
 import DatePicker from "react-datepicker";
@@ -135,7 +135,7 @@ export default function Order({orderService, priceLevel, side, securityId, error
   }
 
   return (
-    <Col className="order">
+    <div className="order">
       <div className="order-form">
         <InputField
           className="order-input-price-level"
@@ -191,6 +191,6 @@ export default function Order({orderService, priceLevel, side, securityId, error
         {currentOrderStatus === "Rejected" && errorMessage && <div className="order-error">{errorMessage}</div>}
         <Button className="order-button" onClick={handleClick}>Place Order</Button>
       </div>
-    </Col>
+    </div>
   )
 }

@@ -7,6 +7,7 @@ export default class OrderService {
     orderIdService = new RequestIDService("order");
     orderStatusIdService = new RequestIDService("order-status");
     orderCancelIdService = new RequestIDService("order-cancel");
+    orderCancelReplaceIdService = new RequestIDService("order-cancel-replace");
 
     constructor(tradeWebsocket) {
         this.websocketService = tradeWebsocket;
@@ -59,6 +60,30 @@ export default class OrderService {
           Side
         };
 
+        this.websocketService.send(request);
+    }
+
+    orderCancelReplace({ OrdType, TimeInForce, Account, OrderID, OrigClOrdID, SecurityIDSource, SecurityID, Side, Price, StopPx, ExpireTime }) {
+        const ClOrdID = this.orderCancelReplaceIdService.generateRequestId();
+        const request = {
+            ...buildMsgType("OrderCancelReplaceRequest"),
+            ClOrdID,
+            TransactTime: generateSendingTime(),
+            OrdType,
+            TimeInForce,
+            Account,
+            OrderID,
+            OrigClOrdID,
+            SecurityIDSource,
+            SecurityID,
+            Side,
+            ExpireTime
+        };
+        if (StopPx) {
+            request.StopPx = StopPx;
+        } else {
+            request.Price = Price;
+        }
         this.websocketService.send(request);
     }
 

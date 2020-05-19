@@ -40,7 +40,7 @@ export default function Charts({service, symbol, securityId, direction, candleSu
   const prevSymbol = usePrevious(securityId);
   const prevInterval = usePrevious(chartInterval);
 
-  const chartContainer = document.querySelector('.pre-trade-container .chart-container');
+  const chartContainer = document.querySelector('.pre-trade-container .chart');
 
   useEffect(() => {
     const handleResize = () => {
@@ -113,7 +113,7 @@ export default function Charts({service, symbol, securityId, direction, candleSu
   }
 
   return (
-    <div className="chart-container">
+    <div className="chart">
       <div>
         <h3>{symbol}</h3>
         <div className="chart-resolutions">

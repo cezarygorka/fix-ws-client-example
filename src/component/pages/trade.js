@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Container } from 'shards-react';
+import { Row, Col } from 'shards-react';
 
-import Quote from '../quote';
-import Charts from '../charts';
 import QuoteService from '../../services/quote-service';
 import { SUBSCRIPTION_REQUEST_TYPE } from '../../services/websocket-connection';
 import SymbolList from '../symbol-list';
-import PerformanceMetrics from "../../performance-metrics";
-import '../../styles/pre-trade.css';
-import Order from "../order";
 import OrderService from "../../services/order-service";
 import ExecutionReportService from '../../services/execution-report-service';
-import WorkingOrders from '../working-orders';
+import PositionReportService from '../../services/position-report-service';
+import { Quotes, ChartContainer, Orders, Reports, MessagePerformanceMetrics } from '../trade';
+import '../../styles/pre-trade.css';
 
 const DEFAULT_SYMBOL_SUBSCRIPTIONS = [
   'GBP/USD',
@@ -26,18 +23,26 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
   const [ securityId, setSecurityId ] = useState(null);
   const [ direction, setDirection ] = useState(null);
   const [ selectedClass, setSelectedClass ] = useState(null);
-  const [ quoteService, setQuoteService ] = useState(null);
   const [ subscribedQuotes, setSubscribedQuotes ] = useState(null);
   const [ symbol, setSymbol ] = useState(null);
   const [ quotesArr, setQuotesArr ] = useState([]);
   const [ selectedMarket, setSelectedMarket ] = useState({ priceLevel: "", side: "", securityId: "" });
-  const [orderService, setOrderService] = useState(null);
+
+  const [ quoteService, setQuoteService ] = useState(null);
+  const [ orderService, setOrderService ] = useState(null);
+
   const [workingOrders, setWorkingOrders] = useState([]);
+  const [positions, setPositions] = useState([]);
+
   const [executionReportService] = useState(new ExecutionReportService());
+  const [positionsService] = useState(new PositionReportService());
+
   const [currency, setCurrency] = useState("");
+  const [replacedOrder, setReplacedOrder] = useState(null);
 
   const serviceQuoteLength = quoteService ? quoteService.getSubscribedQuotes().length : 0;
   const executionReportLength = executionReportService && executionReportService.getExecutionReports().length;
+  const positionReportLength = positionsService && positionsService.getPositionReports().length;
 
   useEffect(() => {
     !orderService && tradeService && setOrderService(new OrderService(tradeService));
@@ -50,7 +55,6 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
 
   useEffect(() => {
     !quoteService && setQuoteService(new QuoteService(preTradeService));
-
     return () => quoteService && quoteService.unsubscribeAll();
   }, [quoteService, preTradeService]);
 
@@ -64,9 +68,11 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
 
   useEffect(() => {
     const setSecurityIdSymbol = (message) => {
-      const { Symbol } = securityList.find(o => o.SecurityID === message.SecurityID);
-      message.SecurityIdSymbol = Symbol;
-      return message;
+      if (securityList.length > 0) {
+      const { Symbol } = securityList.find(s => s.SecurityID === message.SecurityID);
+        message.SecurityIdSymbol = Symbol;
+        return message;
+      }
     };
     const update = (message) => executionReportService && executionReportService.updateExecutionReport(message);
     tradeMessage && tradeMessage.MsgType === "ExecutionReport"
@@ -74,8 +80,27 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
   }, [executionReportService, tradeMessage, securityList]);
 
   useEffect(() => {
-    executionReportService && setWorkingOrders(executionReportService.getWorkingOrders());
-  }, [executionReportService, executionReportLength]);
+    if (tradeMessage.ExecType === "Replaced") {
+      setReplacedOrder(tradeMessage);
+    }
+  }, [tradeMessage]);
+
+  useEffect(() => executionReportService && setWorkingOrders(executionReportService.getWorkingOrders()), [executionReportService, executionReportLength]);
+
+  useEffect(() => positionsService && setPositions(positionsService.getPositionReports()), [positionsService, positionReportLength]);
+
+  useEffect(() => {
+    const setSecurityIdSymbol = (message) => {
+      if (securityList.length > 0) {
+      const { Symbol } = securityList.find(s => s.SecurityID === message.SecurityID);
+        message.SecurityIdSymbol = Symbol;
+        return message;
+      }
+    };
+    const update = (message) => positionsService && positionsService.updatePositionReports(message);
+    tradeMessage && tradeMessage.MsgType === "PositionReport"
+      && setSecurityIdSymbol(tradeMessage) && update(tradeMessage);
+  }, [positionsService, tradeMessage, securityList]);
 
   useEffect(() => {
     if (isEstablish && securityList && quoteService) {
@@ -170,6 +195,11 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
     orderService.cancelOrder(order);
   }
 
+  function handleOrderCancelReplace(order) {
+    order.Account = account;
+    orderService.orderCancelReplace(order);
+  }
+
   return (
       <div className="pre-trade-container">
         <Row>
@@ -177,62 +207,42 @@ export default function Trade({ quoteMessage, tradeMessage, preTradeService, tra
             <SymbolList service={preTradeService} selectedSymbols={subscribedQuotes} securityList={securityList} onSecurityItemSelected={handleQuoteSelection}/>
           </Col>
           <Col md="9" lg="9">
-            <Row>
-              <Col>
-                <PerformanceMetrics quoteMessage={quoteMessage}/>
-              </Col>
-            </Row>
-            <Row>
-              <Container fluid={true}>
-                  <Row className={"quotes-container"}>
-                    {quotesArr && quotesArr.map(quote =>
-                        <Quote
-                            onDirectionClick={selectChart}
-                            className={(quote.securityId === securityId) ? selectedClass : ''}
-                            key={quote.securityId}
-                            symbol={quote.symbol}
-                            securityId={quote.securityId}
-                            buy={quote.BidPx}
-                            sell={quote.OfferPx}
-                        />
-                    )}
-                  </Row>
-              </Container>
-            </Row>
-            {symbol && securityId && direction &&
-            <Row>
-              <Col>
-                <Charts
-                    service={preTradeService}
-                    isLoginSuccessful={isEstablish}
-                    symbol={symbol}
-                    securityId={securityId}
-                    direction={direction}
-                    candleData={candleData}
-                    candleSubscriptionData={candleSubscriptionData.CandleData}
-                />
-              </Col>
-            </Row>}
-            {symbol && securityId && direction &&
-            <Row>
-              <Order
-                  orderService={orderService}
-                  account={account}
-                  currency={currency}
-                  errorMessage={tradeMessage.Text}
-                  rejectReason={tradeMessage.OrdRejReason}
-                  orderId={tradeMessage.ClOrdID}
-                  orderStatus={tradeMessage.OrdStatus}
-                  priceLevel={selectedMarket.priceLevel}
-                  side={selectedMarket.side}
-                  securityId={selectedMarket.securityId}
-              />
-            </Row>}
-            <Row>
-              <Col>
-                <WorkingOrders orders={workingOrders} onCancelOrder={handleCancelOrder} />
-              </Col>
-            </Row>
+            <MessagePerformanceMetrics quoteMessage={quoteMessage}/>
+            <Quotes
+              quotes={quotesArr}
+              securityId={securityId}
+              selectedClass={selectedClass}
+              onDirectionClick={(e) => selectChart(e)}
+            />
+            <ChartContainer
+              service={preTradeService}
+              symbol={symbol}
+              securityId={securityId}
+              direction={direction}
+              historicData={candleData}
+              subscriptionData={candleSubscriptionData}
+            />
+            <Orders
+              service={orderService}
+              account={account}
+              currency={currency}
+              errorMessage={tradeMessage.Text}
+              rejectReason={tradeMessage.OrdRejReason}
+              orderId={tradeMessage.ClOrdID}
+              orderStatus={tradeMessage.OrdStatus}
+              priceLevel={selectedMarket.priceLevel}
+              side={selectedMarket.side}
+              securityId={selectedMarket.securityId}
+              symbol={symbol}
+              direction={direction}
+            />
+            <Reports
+              workingOrders={workingOrders}
+              positions={positions}
+              replacedOrder={replacedOrder}
+              onCancelOrder={(o) => handleCancelOrder(o)}
+              onOrderCancelReplace={(o) => handleOrderCancelReplace(o)}
+            />
           </Col>
         </Row>
       </div>

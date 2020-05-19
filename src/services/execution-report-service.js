@@ -1,12 +1,10 @@
-
 export default class ExecutionReportService {
   executionReports = [];
 
   updateExecutionReport(execReport) {
-    console.log(execReport);
     const execReportFoundIndex = this.executionReports.findIndex(e => e.OrderID === execReport.OrderID);
     if (execReportFoundIndex > -1) {
-      if (execReport.ExecType === "Canceled") {
+      if (execReport.ExecType === "Canceled" || execReport.WorkingIndicator === "NotWorking") {
         this.executionReports.splice(execReportFoundIndex, 1);
       } else {
         this.executionReports[execReportFoundIndex] = execReport;
@@ -21,7 +19,7 @@ export default class ExecutionReportService {
   }
 
   getWorkingOrders() {
-    return this.executionReports.filter(e => e.WorkingIndicator === "Working");
+    return this.getExecutionReports().filter(e => e.WorkingIndicator === "Working");
   }
 
 }
